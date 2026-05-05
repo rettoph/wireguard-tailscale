@@ -1,4 +1,4 @@
-FROM golang:1.26.1-alpine3.23 AS ts-build
+FROM golang:1.26.2-alpine3.23 AS ts-build
 WORKDIR /go/src/tailscale
 
 COPY tailscale/go.mod tailscale/go.sum ./
