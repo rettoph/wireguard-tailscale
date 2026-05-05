@@ -63,11 +63,23 @@ RUN --mount=type=cache,target=/go/pkg,sharing=locked \
         ts_omit_webclient" \
         -ldflags "-w -s -buildid=" ./cmd/tailscaled
 
+# Use apk.static from the alpine dev image to install packages in the final image
+# Verified working: https://dl-cdn.alpinelinux.org/alpine/v3.23/main/x86_64/apk-tools-static-3.0.6-r0.apk
+FROM dhi.io/alpine-base:3.23-alpine3.23-dev AS ts-apk
+RUN --mount=type=cache,target=/var/cache/apk,sharing=locked \
+    apk --no-cache fetch apk-tools-static && \
+    tar -zxvf apk-tools-static-*.apk
+
 # This is the final container
-FROM alpine:3.23
+FROM dhi.io/alpine-base:3.23
+
+USER 0
 
 RUN --mount=type=cache,target=/var/cache/apk,sharing=locked \
-    apk add wireguard-tools-wg-quick iptables ip6tables jq
+    --mount=type=tmpfs,target=/var/log \
+    --mount=type=bind,target=/sbin/apk.static,from=ts-apk,source=/sbin/apk.static \
+    sed -i '/^https:\/\/dhi.io/! s/./#&/' /etc/apk/repositories && \
+    apk.static add wireguard-tools-wg-quick iptables jq
 
 ENV TS_TAILSCALED_EXTRA_ARGS="--no-logs-no-support --tun=userspace-networking" \
     TS_STATE_DIR=/var/lib/tailscale \
